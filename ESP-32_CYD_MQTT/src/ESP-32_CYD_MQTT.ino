@@ -3,17 +3,17 @@
 // Took some time to get the right versions etc. working flawless, so this unusual approach is choosen deliberately.
 // No rights reserved when used non commercial, otherwise contact author.
 
-//#define MeIOT         // If defined ( Me .. MeIOT .. LU ..  Rhy ) use private network for testing, otherwise use IOT standard
+#define Rhy2        // If defined ( Me .. MeIOT .. LU ..  Rhy ) use private network for testing, otherwise use IOT standard
 
 //#define LCDtype     // Witch LCDtype of CYD  choose by additional letter  N .. R .. C (Defined in platformio.ini )
-#define TochSleep     // The screen gets dark and touch messages sending disabled after defined time 
+//#define TochSleep     // The screen gets dark and touch messages sending disabled after defined time 
 
-#define WithSensors   // A variant that measures I2C sensors
+//#define WithSensors   // A variant that measures I2C sensors
 #if defined(WithSensors)
-  #define BMP280      // BMP180 [0x77] or BMP280 aka (HW611) [0x76] Temperatur and air pressure in celsius and pascal 
-  #define CCS811      // CCS811 [0x5A] (CO2 and TOVC)  or  AGS10 [0x1A] (only TOVC air quality)  
+  //#define BMP280    // BMP180 [0x77] or BMP280 aka (HW611) [0x76] Temperatur and air pressure in celsius and pascal 
+  //#define CCS811    // CCS811 [0x5A] (CO2 and TOVC)  or  AGS10 [0x1A] (only TOVC air quality)  
   //#define AS5600    // AS5600 [0x36] Magnetic rotation board
-  #define LM75      // [0x48] Temperature precision sensor
+  //#define LM75      // [0x48] Temperature precision sensor
 //  #define MLX90614  // [0x5A] Temperature IR sensor on GY906 board.  PICKY sensor best run as last one !
 #endif
 
@@ -28,14 +28,9 @@
   #define LCDtypeR
 #endif
 
-#if defined(ESP8266)
-  #include <ESP8266WiFi.h>
-#elif defined(ESP32)
-  #include <WiFi.h>
-#endif
-
 // Needed standard libraries
 #include <Arduino.h>
+#include <WiFi.h>
 #include <PubSubClient.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
@@ -58,6 +53,8 @@
     #include <LU_credentials.h>     
 #elif defined(Rhy)
     #include <Rhy_credentials.h> 
+#elif defined(Rhy2)
+    #include <Rhy2_credentials.h> 
 #else
     #include <credentials.h>         
 #endif
@@ -334,7 +331,7 @@ PubSubClient mqttclient;    // MQTT protokol handler
 
 // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA  APPLICATION SPECIFIC SCREENS startAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
                       // Rhy is 4_2_0
-#define touch_3_3_4   // This decides witch of the below screen layouts is used
+#define touch_3_2_0   // This decides witch of the below screen layouts is used
 
 void MakeScreenTable(){
 
@@ -874,7 +871,9 @@ void callback(char* topic, uint8_t* payload, unsigned int length) {
       Sendme = "Light: ";
       Sendme = Sendme + (analogRead(CYD_LDR));
       mqttclient.publish(out_ligth, (String(Sendme).c_str()), false);       // Send the cyd internal light sensor
-      mqttclient.publish(out_sensors, (String(MySensors).c_str()), false);  // Send list of the usable sensors
+      #if defined(WithSensors)
+        mqttclient.publish(out_sensors, (String(MySensors).c_str()), false);  // Send list of the usable sensors
+      #endif
       break;
     }
     case 'C' : { cyd.fillRect(0,0,319,239,tCol(0)); break;}                 // Clear screen dark
@@ -1610,17 +1609,19 @@ void loop() {
     }
     // Here are the sensordata send via mqtt when exist
     // It is intentional that a send is only done within receive interval. (To avoid unchecked connection abd with buffer problems)
-    if (currentMillis - prevSMQTTMillis >= sendinterval) {
-      prevSMQTTMillis = currentMillis;
-      if (sensor_angle != 9876) {mqttclient.publish(mqtt_out_angle, String(sensor_angle).c_str(), false);}      // AS5600 angle position
-      if (sensor_co2 != 9876) {mqttclient.publish(mqtt_out_co2, String(sensor_co2).c_str(), false);}            // ASG10 air co2 ppm
-      if (sensor_tvoc != 9876) {mqttclient.publish(mqtt_out_tvoc, String(sensor_tvoc).c_str(), false);}         // ASG10 air quality
-      if (sensor_pressure != 9876) {mqttclient.publish(mqtt_out_press, String(sensor_pressure).c_str(), false);} // BMPxxx air pressure 
-      if (sensor_humidity != 9876) {mqttclient.publish(mqtt_out_hum, String(sensor_humidity).c_str(), false);}  // Humidity sensor 
-      if (sensor_temp != 9876) {mqttclient.publish(mqtt_out_temp, String(sensor_temp).c_str(), false);}         // BMPxxx temperatur 
-      if (sensor_tempa != 9876) {mqttclient.publish(mqtt_out_tempa, String(sensor_tempa).c_str(), false);}      // MXL90614 ambient temp 
-      if (sensor_tempo != 9876) {mqttclient.publish(mqtt_out_tempo, String(sensor_tempo).c_str(), false);}      // MXL90614 meassured temp
-    }
+    #if defined(WithSensors)
+      if (currentMillis - prevSMQTTMillis >= sendinterval) {
+        prevSMQTTMillis = currentMillis;
+        if (sensor_angle != 9876) {mqttclient.publish(mqtt_out_angle, String(sensor_angle).c_str(), false);}      // AS5600 angle position
+        if (sensor_co2 != 9876) {mqttclient.publish(mqtt_out_co2, String(sensor_co2).c_str(), false);}            // ASG10 air co2 ppm
+        if (sensor_tvoc != 9876) {mqttclient.publish(mqtt_out_tvoc, String(sensor_tvoc).c_str(), false);}         // ASG10 air quality
+        if (sensor_pressure != 9876) {mqttclient.publish(mqtt_out_press, String(sensor_pressure).c_str(), false);} // BMPxxx air pressure 
+        if (sensor_humidity != 9876) {mqttclient.publish(mqtt_out_hum, String(sensor_humidity).c_str(), false);}  // Humidity sensor 
+        if (sensor_temp != 9876) {mqttclient.publish(mqtt_out_temp, String(sensor_temp).c_str(), false);}         // BMPxxx temperatur 
+        if (sensor_tempa != 9876) {mqttclient.publish(mqtt_out_tempa, String(sensor_tempa).c_str(), false);}      // MXL90614 ambient temp 
+        if (sensor_tempo != 9876) {mqttclient.publish(mqtt_out_tempo, String(sensor_tempo).c_str(), false);}      // MXL90614 meassured temp
+      }
+    #endif
   }
   #if defined(LCDtypeR)                   // Version resistive
     if (touchHW.touched()) {              // Only when touch event
