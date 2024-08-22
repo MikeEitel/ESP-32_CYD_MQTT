@@ -3,7 +3,7 @@
 // Took some time to get the right versions etc. working flawless, so this unusual approach is choosen deliberately.
 // No rights reserved when used non commercial, otherwise contact author.
 
-#define Rhy2        // If defined ( Me .. MeIOT .. LU ..  Rhy ) use private network for testing, otherwise use IOT standard
+//#define Rhy        // If defined ( Me .. MeIOT .. LU ..  Rhy ) use private network for testing, otherwise use IOT standard
 
 //#define LCDtype     // Witch LCDtype of CYD  choose by additional letter  N .. R .. C (Defined in platformio.ini )
 //#define TochSleep     // The screen gets dark and touch messages sending disabled after defined time 
