@@ -3,6 +3,8 @@ A display based on   ESP32-2432S024x  boards controlled by MQTT and is dual core
 The type of board ( defined in the plattform.ini  ) alows also if the touch part of the program can get compiled or not, and witch libraries / pins have to be used.
 You can compile N type also if do not want that feature.
 
+IF YOU WANT TO USE SENSORS DO NOT FORGET TO DESOLDER THE R25 RESISTOR  ( Stupid 0 ohm, see pictures to locate it on the board )
+
 You can define from line 11 to 18 if and witch sensors you want. The complexity of combinations is is quite high and reason that you have to make your own tests.
 This snapshot is a work in process and in my eyes an ethernal story. Lib incompatibilities made me do the strange ___Lib approach that you find in another repository.
 
