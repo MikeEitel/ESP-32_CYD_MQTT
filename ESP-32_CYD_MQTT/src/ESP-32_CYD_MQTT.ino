@@ -682,6 +682,7 @@ void  StaticText2Screen(int Sta, int Stb) {   // MQTT M
 void setup_wifi() {
   vTaskDelay(10);
 
+  WiFi.hostname(iamclient);
   WiFi.config(staticIP, gateway, subnet);
 
   Serial.println("");
@@ -762,6 +763,7 @@ void reconnect() {
   vTaskDelay(100);
   // Loop until we're reconnected to MQTT server
   while (!mqttclient.connected() && (watchdogM <= mqtt_timeout)) {
+    mqttclient.disconnect();            // Cleaning MQTT broker
     mqttclient.clearWriteError();       // Cleaning MQTT write buffer
     mqttclient.flush();                 // Cleaning MQTT data buffer
     mqttstatus = mqttclient.state();    // Decoding of MQTT status 
@@ -997,6 +999,13 @@ void findTouchPos() {
       Y = helper; // conversion to integer  
       if (X<=0) {X = 1;}; if (X>320){X = 320;}
       if (Y<=0) {Y = 1;}; if (Y>240){Y = 240;}
+
+      // **Apply rotation fix**
+      if (cyd.getRotation() == 3) {  // 180-degree rotation
+        X = 320 - X;
+        Y = 240 - Y;
+      } 
+
       int Xh; int Yh;   int fh; int fhh = -1;   // Initialize with an invalid value
       for (int i = 0; i < XYtamax; i++) {       // Conversion to integer needed
         Xh = areas[i].Xstart + areas[i].Xlen;
@@ -1053,6 +1062,7 @@ void printTouch2Screen(){
   }
 
 void ShowSensorsOnLocalScreen(){
+  #if defined(WithSensors)
     if (field == showsensorslocal){
       cyd.fillRect(0,0,320,240,ILI9341_DARKGREY);
       cyd.setTextColor(ILI9341_CYAN); cyd.setCursor(5,3); cyd.setTextSize(3); cyd.println("Lokale Sensoren");
@@ -1081,6 +1091,7 @@ void ShowSensorsOnLocalScreen(){
       StaticText2Screen(0, Fieldmax);
       mqttclient.publish(out_status, "Reconnected" ,false);   // Dirty trick to get values from mqtt back into fields
     };
+    #endif
   }
 
 #endif
@@ -1483,11 +1494,11 @@ void setup() {
   analogWrite(CYD_BL,bkl_set);
  
   cyd.begin();                          // Display with LED in  -lower-left-  corner
-  cyd.setRotation(1);
-  cyd.writeCommand(ILI9341_GAMMASET); //Gamma curve selected
+  cyd.setRotation(1);                   // Here define the sreen rotation
+  cyd.writeCommand(ILI9341_GAMMASET);   //Gamma curve selected
   cyd.write(2);
   vTaskDelay(120);
-  cyd.writeCommand(ILI9341_GAMMASET); //Gamma curve selected
+  cyd.writeCommand(ILI9341_GAMMASET);   //Gamma curve selected
   cyd.write(1);
   cyd.fillScreen(ILI9341_BLACK); 
   cyd.setCursor(0, 0);
