@@ -3,10 +3,10 @@
 // Took some time to get the right versions etc. working flawless, so this unusual approach is choosen deliberately.
 // No rights reserved when used non commercial, otherwise contact author.
 
-//#define Rhy        // If defined ( Me .. MeIOT .. LU ..  Rhy ) use private network for testing, otherwise use IOT standard
+//#define MeTEST        // If defined ( Me .. MeIOT .. LU ..  Rhy ) use private network for testing, otherwise use IOT standard
 
 //#define LCDtype     // Witch LCDtype of CYD  choose by additional letter  N .. R .. C (Defined in platformio.ini )
-//#define TochSleep     // The screen gets dark and touch messages sending disabled after defined time 
+#define TochSleep     // The screen gets dark and touch messages sending disabled after defined time 
 
 //#define WithSensors   // A variant that measures I2C sensors
 #if defined(WithSensors)
@@ -48,7 +48,9 @@
 #if defined(Me)                       
     #include <Me_credentials.h>      
 #elif defined(MeIOT)
-    #include <MeIOT_credentials.h>     
+    #include <MeIOT_credentials.h>
+#elif defined(MeTEST)
+    #include <MeTest_credentials.h>       
 #elif defined(LU)
     #include <LU_credentials.h>     
 #elif defined(Rhy)
@@ -192,7 +194,7 @@
 #define ILI9341_DARK_BLUE 000005  // a very dark blue
 int showsensorslocal = 17;                // Field number to show sensor on screen
 
-#define mqMaxtext 55              // Maximal tranverable text via mqtt minus 1
+#define mqMaxtext 255              // Maximal tranverable text via mqtt minus 1
 
 // Multitasking for 2 cores
 BaseType_t taskCreationResult;
@@ -253,10 +255,10 @@ int LEDsta_B = 0;                 // Commandstatus for blue led
   int Yraw;                                 // Last detected Y position on touch
   int X = 0;                                // Last calculated X position on touch
   int Y = 0;                                // Last calculated Y position on touch
-  int field = 0;                   // Actual detected screen field      USED in both tasks
+  int field = 0;                            // Actual detected screen field      USED in both tasks
   volatile int lastfield = 0;               // Helper to avoid double activities USED in both tasks
   bool bkl_ON= true;                        // Can switch off backlight when a touch screen
-  const long bkl_NotSleep = 60000;             // defines how long the screen stays bright
+  const long bkl_NotSleep =  60000;         // defines how long the screen stays bright
   bool touch_SHOW = false;                  // Show the touch field on screen for testing
 #endif
 
@@ -272,7 +274,7 @@ int LEDsta_B = 0;                 // Commandstatus for blue led
     int Ytext;  // Start of text Y based on Ystart
     int Ytlen;  // Length of the texts background Y
 };
-areastruct areas[12];
+areastruct areas[40];
 
 struct areastaticstruct { // Used to have a static "menue's text" on screen
   int field;              // This unique area number is NOT the same as in area 
@@ -304,12 +306,10 @@ struct fieldvaluestruct { // Used to have a static "menue's text" on screen
 };
 fieldvaluestruct fieldval[40];   // A application depending structure of static texts
 
-int XY1tareas = 4;        // Possible touch areas on X axis for upper row Y1
-int XY2tareas = 4;        // Possible touch areas on X axis for middle row Y2
-int XY3tareas = 4;        // Possible touch areas on X axis in case there are 3 rows Y3
-int XYtamax  = 17;        // Maximal number of areas
-int Staticmax  = 12;      // Maximal number of static texts for areas
-int Fieldmax  = 40;       // Maximal number of field for areas
+int Areamax  = 25;        // Maximal number of areas
+int Staticmax  = 25;      // Maximal number of static texts for areas
+int Fieldmax  = 25;       // Maximal number of field for areas
+int Touchmax  = 16;       // Maximal number of touch areas
 
 Adafruit_ILI9341 cyd = Adafruit_ILI9341(CYD_CS, CYD_DC, CYD_RST); // When resistive touch below software spi is not usable !
 //Adafruit_ILI9341 cyd = Adafruit_ILI9341(CYD_CS, CYD_DC, CYD_MOSI, CYD_SCLK, CYD_RST, CYD_MISO);
@@ -331,14 +331,12 @@ PubSubClient mqttclient;    // MQTT protokol handler
 
 // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA  APPLICATION SPECIFIC SCREENS startAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
                       // Rhy is 4_2_0
-#define touch_3_2_0   // This decides witch of the below screen layouts is used
+#define touch_4_4_4_3   // This decides witch of the below screen layouts is used
 
 void MakeScreenTable(){
 
     #if defined(touch_3_2_0)       // Possible touch areas on X axis for middle row Y2
-    XY1tareas = 3;                 // Possible touch areas on X axis for upper row Y1
-    XY2tareas = 2;                 // Possible touch areas on X axis for middle row Y2
-    XY3tareas = 0;                 // Possible touch areas on X axis in case there are 3 rows Y3
+    Touchmax  = 5;       // Maximal number of touch areas
     
     // Definition of the main areas
     int fieldValues[] =  {   1,   2,   3,   4,   5,  99};
@@ -379,10 +377,9 @@ void MakeScreenTable(){
     int FYvlenValue[] =  {  29,  29,  29,  29,  25,  25,  29,  29,  25,  25,  25,  25,  25,  25,  99};
 
   #elif defined(touch_4_2_0)   // The 4 * 2 
-    XY1tareas = 4;                 // Possible touch areas on X axis for upper row Y1
-    XY2tareas = 2;                 // Possible touch areas on X axis for middle row Y2
-    XY3tareas = 0;                 // Possible touch areas on X axis in case there are 3 rows Y3
+    Touchmax  = 6;       // Maximal number of touch areas
     showsensorslocal = 4;
+
     // Definition of the main areas
     int fieldValues[] =  {   1,   2,   3,   4,   5,   6,  99};
     int XstartValues[] = {   1,  81, 161, 241,   1, 161,  99};
@@ -422,11 +419,9 @@ void MakeScreenTable(){
     int FYvlenValue[] =  {  29,  29,  29,  29,  29,  29,  29,  29,  23,  23,  23,  23,  26,  26,  99};
 
   #elif defined(touch_3_3_4)   // The 3+3+4 
-    XY1tareas = 3;                 // Possible touch areas on X axis for upper row Y1
-    XY2tareas = 3;                 // Possible touch areas on X axis for middle row Y2
-    XY3tareas = 4;                 // Possible touch areas on X axis in case there are 3 rows Y3
-
+    Touchmax  = 10;       // Maximal number of touch areas
     showsensorslocal = 10;
+
     // Definition of the main areas
     int fieldValues[] =  {   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  99};
     int XstartValues[] = {   1, 108, 215,   1, 108, 215,   1,  81, 161, 241,  99};
@@ -468,9 +463,7 @@ void MakeScreenTable(){
 
   #elif defined(touch_4_4_4)   // The 3+3+4 
     // Max sensfull matrix of 4x4x4
-    XY1tareas = 4;                 // Possible touch areas on X axis for upper row Y1
-    XY2tareas = 4;                 // Possible touch areas on X axis for middle row Y2
-    XY3tareas = 4;                 // Possible touch areas on X axis in case there are 3 rows Y3
+    Touchmax  = 12;       // Maximal number of touch areas
 
     // Definition of the main areas
     int fieldValues[] =  {   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  99};
@@ -509,10 +502,52 @@ void MakeScreenTable(){
     int FYvoffValue[] =  {   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,  99};
     int FYvlenValue[] =  {  26,  26,  26,  26,  26,  26,  26,  26,  26,  26,  26,  26,  99};
 
+  #elif defined(touch_4_4_4_3)   // The 3+3+4 
+    // Max sensfull matrix of 4x4x4
+    Touchmax = 15;                  // In reality used areas
+    Areamax  = 22;        // Maximal number of areas
+  
+    int fieldValues[] =  {   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  99};
+    int XstartValues[] = {   1,  81, 161, 241,   1,  81, 161, 241,   1,  81, 161, 241,   1, 108, 215,   1, 161,   1, 161,   1, 161,   1,  99};
+    int XlenValues[] =   {  78,  78,  78,  79,  78,  78,  78,  79,  78,  78,  78,  79, 104, 104, 105, 156, 157, 156, 157, 156, 157, 315,  99};
+    int XtextValues[] =  {   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,  99};
+    int XtlenValues[] =  {  74,  74,  74,  74,  74,  74,  74,  74,  74,  74,  74,  74,  98,  98,  98, 148, 149, 148, 149, 148, 149, 316,  99};
+    int YstartValues[] = {   1,   1,   1,   1,  71,  71,  71,  71, 141, 141, 141, 141, 213, 213, 213,   1,   1,  71,  71, 141, 141,   1,  99};
+    int YlenValues[] =   {  68,  68,  68,  68,  68,  68,  68,  68,  68,  68,  68,  68,  26,  26,  26,  68,  68,  68,  68,  68,  68, 180,  99};
+    int YtextValues[] =  {   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,    5,    5,    5,    5,    5,  99};
+    int YtlenValues[] =  {  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  25,  99};
+
+    // Definition of the static / menue text in an area
+    int SfieldValue[] = {   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  99};
+    int SareaValue[] =  {   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  99};
+    int SXoffValue[] =  {   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,  99};
+    int SXlenValue[] =  {  72,  72,  72,  73,  72,  72,  72,  73,  72,  72,  72,  73,  98,  99, 100, 150, 152, 150, 152, 150, 152, 310,  99};
+    int SXtextValue[] = {  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  10,  99};
+    int SYoffValue[] =  {   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,  99};
+    int SYlenValue[] =  {  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  20,  99};
+    int SYtextValue[] = {   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,   5,  99};
+    int SsizeValue[] =  {   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,  99};
+    int SfgValue[] =    {  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  12,  99};
+    int SbgValue[] =    {   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   6,   8,  99};
+    const char *textValue[] = { "150","140","130-0","130-1","180","170","110-0","110-1","190","3EM","WLED","L",
+                                "DIG","  P1","  P2",
+                                "3EM Spannung","3EM Strom L1","UNI-T Volt","3EM Strom L2","Pow S1PM-140","3EM Strom L3",
+                                "Console","off "};
+
+    // Definition of the dynamic written fields in the areas
+    int FfieldValue[] =  {   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  99};
+    int FareaValue[] =   {   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,  20,  21,  22,  99};
+    int FXvbstaValue[] = {   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,  99};
+    int FXvblenValue[] = {  73,  73,  73,  74,  73,  73,  73,  74,  73,  73,  73,  74, 100, 100, 100, 154, 155, 154, 155, 154, 155, 313,  99};
+    int FYvbstaValue[] = {  30,  30,  30,  30,  30,  30,  30,  30,  30,  30,  30,  30,   1,   1,   1,  30,  30,  30,  30,  30,  30,  21,  99};
+    int FYvblenValue[] = {  35,  35,  35,  35,  35,  35,  35,  35,  35,  35,  35,  35,  23,  23,  23,  35,  35,  35,  35,  35,  35, 185,  99};
+    int FXvoffValue[] =  {   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,  99};
+    int FXvlenValue[] =  {  67,  67,  67,  67,  67,  67,  67,  67,  67,  67,  67,  67,  94,  94,  94, 150, 151, 150, 151, 150, 151, 308,  99};
+    int FYvoffValue[] =  {   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   4,   4,   4,   1,   1,   1,   1,   1,   1,   3,  99};
+    int FYvlenValue[] =  {  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  32,  16,  16,  16,  32,  32,  32,  32,  32,  32, 177,  99};
+
   #elif defined(touch_2_2_0)
-    XY1tareas = 2;                 // Possible touch areas on X axis for upper row Y1
-    XY2tareas = 2;                 // Possible touch areas on X axis for middle row Y2
-    XY3tareas = 0;                // Possible touch areas on X axis in case there are 3 rows Y3
+  Touchmax  = 4;       // Maximal number of touch areas
 
     // Definition of the main areas
     int fieldValues[] =  {   1,   2,   3,   4,  99};
@@ -552,9 +587,7 @@ void MakeScreenTable(){
     int FYvlenValue[] =  {  60,  60,  60,  60,  60,  60,  60,  60,  99};
 
   #else  
-    XY1tareas = 1;                 // Possible touch areas on X axis for upper row Y1
-    XY2tareas = 0;                 // Possible touch areas on X axis for middle row Y2
-    XY3tareas = 0;                // Possible touch areas on X axis in case there are 3 rows Y3
+    Touchmax  = 1;       // Maximal number of touch areas
 
     // Definition of the main areas
     int fieldValues[] =  {   1,   2,  99};
@@ -595,21 +628,20 @@ void MakeScreenTable(){
     int FYvlenValue[] =  { 165, 166,  99};
   #endif
 
-  XYtamax = XY1tareas + XY2tareas + XY3tareas;  // Maximal number of areas
-    
-  for (int i = 0; i < XYtamax; i++){
-    areas[i].area = fieldValues[i];
-    areas[i].Xstart = XstartValues[i];
-    areas[i].Xlen = XlenValues[i];
-    areas[i].Xtext = XtextValues[i];
-    areas[i].Xtlen = XtlenValues[i];
-    areas[i].Ystart = YstartValues[i];
-    areas[i].Ylen = YlenValues[i];
-    areas[i].Ytext = YtextValues[i];
-    areas[i].Ytlen = YtlenValues[i];
+    for (int i = 0; i < Areamax && fieldValues[i] < 99; i++)
+    {
+      areas[i].area = fieldValues[i];
+      areas[i].Xstart = XstartValues[i];
+      areas[i].Xlen = XlenValues[i];
+      areas[i].Xtext = XtextValues[i];
+      areas[i].Xtlen = XtlenValues[i];
+      areas[i].Ystart = YstartValues[i];
+      areas[i].Ylen = YlenValues[i];
+      areas[i].Ytext = YtextValues[i];
+      areas[i].Ytlen = YtlenValues[i];
   }
 
-  for (int s = 0; s < 40 && SfieldValue[s] < 99; s++) {
+  for (int s = 0; s < (Areamax) && SfieldValue[s] < 99; s++) {
     Staticmax = SfieldValue[s];
   }
   for (int s = 0; s < Staticmax && ar_sta[s + 1].field < 99; s++) {
@@ -627,7 +659,7 @@ void MakeScreenTable(){
     ar_sta[s].text = textValue[s];
   }
 
-  for (int f = 0; f < 40 && FfieldValue[f] < 99; f++) {
+  for (int f = 0; f < (Areamax) && FfieldValue[f] < 99; f++) {
     Fieldmax = FfieldValue[f];
   }
   for (int f = 0; f < Fieldmax && fieldval[f + 1].field < 99; f++) {
@@ -648,7 +680,7 @@ void StartScreen() {    // MQTT S
   // Test that profes the full screen adressing is from 0,0 to 319,239
   //  cyd.fillRect(0, 239, 1, 1, tCol(17)); cyd.fillRect(319, 239, 1, 1, tCol(17));
   cyd.fillRect(0, 0, 320, 240, tCol(3));
-  for (int s = 0; s < XYtamax; s++)
+  for (int s = 0; s < Touchmax; s++)
   {
     cyd.drawRect(areas[s].Xstart, areas[s].Ystart, areas[s].Xlen, areas[s].Ylen, tCol(6));
   }
@@ -656,7 +688,7 @@ void StartScreen() {    // MQTT S
 
 void  StaticText2Screen(int Sta, int Stb) {   // MQTT M
   if (Stb > Staticmax) { Stb = Staticmax; }
-  for (int s = Sta; s < Stb ; s++) {
+  for (int s = Sta; s <= Stb ; s++) {
     int arr = ar_sta[s].area -1;
     int Xarr = areas[arr].Xstart;
     int Yarr = areas[arr].Ystart;    
@@ -681,7 +713,7 @@ void  StaticText2Screen(int Sta, int Stb) {   // MQTT M
 // mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm mqtt connection  start mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
 void setup_wifi() {
   vTaskDelay(10);
-
+  
   WiFi.hostname(iamclient);
   WiFi.config(staticIP, gateway, subnet);
 
@@ -713,7 +745,7 @@ void setup_wifi() {
   WiFi.setTxPower(WIFI_POWER_19_5dBm);
   
   while ((WiFi.status()!= WL_CONNECTED) && (watchdogW <= WiFi_timeout)) {
-    vTaskDelay(250);
+    vTaskDelay(330);
     Serial.print(".");
     Serial.print(watchdogW);
 
@@ -800,6 +832,7 @@ void reconnect() {
     cyd.setTextColor(ILI9341_BLACK); 
     cyd.setTextSize(1);  
     cyd.setCursor(0,150);
+    cyd.print("RSSI: ");   cyd.println(WiFi.RSSI());
     cyd.println(reason);
  
     if (mqttclient.connect(iamclient, mqtt_user, mqtt_password)) {
@@ -879,15 +912,22 @@ void callback(char* topic, uint8_t* payload, unsigned int length) {
       break;
     }
     case 'C' : { cyd.fillRect(0,0,319,239,tCol(0)); break;}                 // Clear screen dark
-    case 'S' : { StartScreen(); StaticText2Screen(0,Fieldmax); break;}      // Start screen
+    case 'S' : { StartScreen(); StaticText2Screen(0,Touchmax-1); break;}    // Start screen
 
     case 'U' : { cyd.fillRect(0,0,320,240,tCol(9)); break;}                 // Clear screen light grey
     case 'V' : { StartScreen(); break;}                                     // Only the frame
-    case 'W' : { StaticText2Screen(0,Fieldmax); ShowArea(); break;}         // Static menue text to screen
+
     #if !defined(LCDtypeN)                                                  // Helper for AREA concept when touch
+      case 'Q' : { // Used to write the predefined menue texts ( by given by start and end "array"-nr  )    M0106
+        int Va;   int Vb; 
+        Va = x2i(receivedChar,1,2);           // Received from mqtt witch variable is send
+        Vb = x2i(receivedChar,3,4);           // Received from mqtt text colour
+        ShowArea2(Va,Vb);
+        break; }
+      case 'W' : { StaticText2Screen(0,Touchmax); ShowArea(); break;}       // Static menue & dynymic text to screen
       case 'Y' : { int Va; Va = x2i(receivedChar,1,2);                      // Switch touch testmode via mqtt
         if (Va != 0) {touch_SHOW = true;} else {touch_SHOW = false;}; break;}
-      case 'Z' : {  StartScreen(); StaticText2Screen(0, Fieldmax); vTaskDelay(1500); // Show all fields in touch
+      case 'Z' : {  StartScreen(); StaticText2Screen(0, Touchmax); vTaskDelay(1500); // Show all fields in touch
                     ShowTouch(); vTaskDelay(1500); ShowArea(); break; }
     #endif
 
@@ -1007,7 +1047,7 @@ void findTouchPos() {
       } 
 
       int Xh; int Yh;   int fh; int fhh = -1;   // Initialize with an invalid value
-      for (int i = 0; i < XYtamax; i++) {       // Conversion to integer needed
+      for (int i = 0; i < Touchmax; i++) {       // Conversion to integer needed
         Xh = areas[i].Xstart + areas[i].Xlen;
         Yh = areas[i].Ystart + areas[i].Ylen;
         fh = areas[i].area;
@@ -1027,7 +1067,7 @@ void findTouchPos() {
     bklonMillis = currentMillis;  // Normal adjust time meanwhile non sleep cycle
   }
 void showTouchTable() {
-    for (int i = 0; i < XYtamax; i++) {
+    for (int i = 0; i < Touchmax; i++) {
       char ftext[3];
       itoa(areas[i].area, ftext, 10);
       Serial.print(areas[i].area);
@@ -1036,7 +1076,7 @@ void showTouchTable() {
     }
   }
 void ShowTouch(){                      // MQTT H
-    for (int i = 0; i < (XYtamax); i++){  // Draw rectangle to show the fields that contain variables
+    for (int i = 0; i < (Touchmax); i++){  // Draw rectangle to show the fields that contain variables
       int iX = areas[i].Xstart; int iY = areas[i].Ystart;
       int iXl = areas[i].Xlen;  int iYl = areas[i].Ylen;
       int iXt = areas[i].Xstart + areas[i].Xtext; int iYt = areas[i].Ystart + areas[i].Ytext;
@@ -1060,7 +1100,6 @@ void printTouch2Screen(){
     cyd.print("/");
     cyd.println(Y);
   }
-
 void ShowSensorsOnLocalScreen(){
   #if defined(WithSensors)
     if (field == showsensorslocal){
@@ -1143,21 +1182,40 @@ void PrintArea2Screen(int Xpos, int Ypos, int Xlen, int Ylen,int Xtpos, int Ytpo
 }
 
 void ShowArea(){ 
-    for (int j = 0; j < Fieldmax; j++){  // Write the text
-      int fff = fieldval[j].area - 1;
-      int iarX = areas[fff].Xstart;         int iarY = areas[fff].Ystart;
-      int iXb = iarX + fieldval[j].Xvbsta;  int iYb = iarY + fieldval[j].Yvbsta;
-      int iXbl = fieldval[j].Xvblen;        int iYbl = fieldval[j].Yvblen;
-      int iXv = iXb + fieldval[j].Xvoff;    int iYv = iYb + fieldval[j].Yvoff;
-      int iXvl = fieldval[j].Xvlen;         int iYvl = fieldval[j].Yvlen;
-      int fg = tCol(5); int bg = tCol(8);; int dg = tCol(17);
-      int is = 1;
-      char itx[3]; itoa(j+1, itx, 10);
-      cyd.drawRoundRect(iXb, iYb, iXbl, iYbl, 5, dg);
-      //cyd.drawRect(iXb, iYb, iXbl, iYbl, fg); // tCol(6));
-      PrintInArea2Screen(iXv, iYv, iXvl, iYvl, iXv, iYv, is, fg, bg, itx);
-    }
+  for (int j = 0; j < Fieldmax; j++){  // Write the text
+  int fff = fieldval[j].area - 1;
+  int iarX = areas[fff].Xstart;         int iarY = areas[fff].Ystart;
+  int iXb = iarX + fieldval[j].Xvbsta;  int iYb = iarY + fieldval[j].Yvbsta;
+  int iXbl = fieldval[j].Xvblen;        int iYbl = fieldval[j].Yvblen;
+  int iXv = iXb + fieldval[j].Xvoff;    int iYv = iYb + fieldval[j].Yvoff;
+  int iXvl = fieldval[j].Xvlen;         int iYvl = fieldval[j].Yvlen;
+  int fg = tCol(5); int bg = tCol(8);; int dg = tCol(17);
+  int is = 1;
+  char itx[3]; itoa(j+1, itx, 10);
+  cyd.drawRoundRect(iXb, iYb, iXbl, iYbl, 5, dg);
+  //cyd.drawRect(iXb, iYb, iXbl, iYbl, fg); // tCol(6));
+  PrintInArea2Screen(iXv, iYv, iXvl, iYvl, iXv, iYv, is, fg, bg, itx);
+  vTaskDelay(500);
   }
+}
+
+void ShowArea2(int a, int b){ 
+  for (int j = a; j <= b; j++){  // Write the text
+  int fff = fieldval[j].area - 1;
+  int iarX = areas[fff].Xstart;         int iarY = areas[fff].Ystart;
+  int iXb = iarX + fieldval[j].Xvbsta;  int iYb = iarY + fieldval[j].Yvbsta;
+  int iXbl = fieldval[j].Xvblen;        int iYbl = fieldval[j].Yvblen;
+  int iXv = iXb + fieldval[j].Xvoff;    int iYv = iYb + fieldval[j].Yvoff;
+  int iXvl = fieldval[j].Xvlen;         int iYvl = fieldval[j].Yvlen;
+  int fg = tCol(5); int bg = tCol(8);; int dg = tCol(17);
+  int is = 1;
+  char itx[3]; itoa(j+1, itx, 10);
+  cyd.drawRoundRect(iXb, iYb, iXbl, iYbl, 5, dg);
+  //cyd.drawRect(iXb, iYb, iXbl, iYbl, fg); // tCol(6));
+  PrintInArea2Screen(iXv, iYv, iXvl, iYvl, iXv, iYv, is, fg, bg, itx);
+  vTaskDelay(500);
+  }
+}
 
 
 // pppppppppppppppppppppppppppppppppppppppppppppp print to screen  end  pppppppppppppppppppppppppppppppppppppppppppp
@@ -1205,7 +1263,7 @@ void LedControl(){
     //                    case 2:{digitalWrite(CYD_BL, Ticker);break;} case 3:{digitalWrite(CYD_BL, !Ticker);break;} 
     // Here dimmed mode
     case 0:{bkl_now = 0 ;break;}    
-    case 1:{ bkl_now = bkl_set;
+    /*case 1:{ bkl_now = bkl_set;
       #if !defined(LCDtypeN)
         #if defined(TochSleep)
           if (millis() - bklonMillis >= bkl_NotSleep) { bkl_ON= false; bkl_now = 10; }   // Dimmed to 10
@@ -1218,10 +1276,24 @@ void LedControl(){
       else if (ldr >= 101 && ldr <= 500) {bkl_now = 16;}
       else {bkl_now = 04;}
       break;}
-    case 3: {
-      if (!Ticker) {bkl_now = bkl_set;}
-      else { bkl_now = 0;};break;}
-    default: {break;}
+    */
+    case 1:{ bkl_now = bkl_set;
+      #if !defined(LCDtypeN)
+        bkl_now = 255;
+      #endif  
+      break; }
+    case 2: {
+      #if !defined(LCDtypeN)
+        #if defined(TochSleep)
+          if (millis() - bklonMillis >= bkl_NotSleep) { bkl_ON= false; bkl_now = 10; }   // Dimmed to 10
+        #endif
+      #endif  
+      break; }
+    case 3: { bkl_now = bkl_set;
+      bkl_now = 10;
+      break;}
+    default: { break;}
+
   }
   if (bkl_now != bkl_last){analogWrite(CYD_BL,bkl_now); bkl_last = bkl_now;}
   switch (LEDsta_R)
@@ -1494,7 +1566,7 @@ void setup() {
   analogWrite(CYD_BL,bkl_set);
  
   cyd.begin();                          // Display with LED in  -lower-left-  corner
-  cyd.setRotation(1);                   // Here define the sreen rotation
+  cyd.setRotation(3);                   // Here define the sreen rotation
   cyd.writeCommand(ILI9341_GAMMASET);   //Gamma curve selected
   cyd.write(2);
   vTaskDelay(120);
@@ -1543,6 +1615,12 @@ void setup() {
  
   MakeColourTable();                // Prepare easy colour definition and 
   MakeScreenTable();                // Write first static screen
+
+  Serial.print(Areamax);  Serial.print("-");     // Maximal number of touch areas
+  Serial.print(Staticmax); Serial.print("-");       // Maximal number of touch areas
+  Serial.print(Fieldmax); Serial.print("-");       // Maximal number of touch areas
+  Serial.println(Touchmax);       // Maximal number of touch areas
+
 
   // MMMMMMMMMMMNNMM  MULTICORE start  ==  Application is in -->  void Core0Task() MMMMMMMMMMMMMMMMMMMMMMM
 
