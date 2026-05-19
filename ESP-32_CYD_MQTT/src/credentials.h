@@ -19,7 +19,7 @@ IPAddress subnet(255,255,255,0);                      // Network subnet size
 //IPAddress gateway(192,168,x,y);                                // Network router IP
 IPAddress gateway(1,1,1,1);                // REPLACE !!!!
 
-// Raspberri Pi Mosquitto MQTT Broker definitions
+// Mosquitto MQTT Broker definitions
 #define mqtt_server    "192.168.x.z"                  // IOT MQTT server IP
 #define mqtt_user      "admin"
 #define mqtt_password  "admin"
